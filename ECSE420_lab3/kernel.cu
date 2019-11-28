@@ -22,18 +22,18 @@ int main(int argc, char* argv[])
 {
 	int iterations = atoi(argv[1]);
 
-	float drum_U[N][N] = { 0 };
-	float drum_U1[N][N] = { 0 };
-	float drum_U2[N][N] = { 0 };
+	float seqDrum_U[N][N] = { 0 };
+	float seqDrum_U1[N][N] = { 0 };
+	float seqDrum_U2[N][N] = { 0 };
 
-	drum_U1[N / 2][N / 2] += 1.0f;
+	seqDrum_U1[N / 2][N / 2] += 1.0f;
 
 	for (int i = 0; i < iterations; i++) {
-		seqSolver(drum_U, drum_U1, drum_U2);
-		printf("U[N/2][N/2] after %d interation: %3.6f\n", i, drum_U[N / 2][N / 2]);
-		display(drum_U);
-		memcpy(drum_U2, drum_U1, N * N * sizeof(float));
-		memcpy(drum_U1, drum_U, N * N * sizeof(float));
+		seqSolver(seqDrum_U, seqDrum_U1, seqDrum_U2);
+		printf("U[N/2][N/2] after %d interation: %3.6f\n", i, seqDrum_U[N / 2][N / 2]);
+		display(seqDrum_U);
+		memcpy(seqDrum_U2, seqDrum_U1, N * N * sizeof(float));
+		memcpy(seqDrum_U1, seqDrum_U, N * N * sizeof(float));
 	}
 	
 
