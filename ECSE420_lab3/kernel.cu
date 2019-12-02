@@ -13,6 +13,7 @@ using namespace std;
 #define G 0.75		//given parameter
 
 #define N 4			//size
+#define M 512		//size part 3
 
 int seqSolver(float u[][N], float u1[][N], float u2[][N]);
 int display(float u[][N]);
@@ -45,64 +46,96 @@ __global__ void parallelSolverP3(float* u)
 	if (threadIdx.x == N - 1) u[threadIdx.x] = G * u[threadIdx.x - 1];
 }
 
+__global__ void parallelSolverP4(float* u, float* u1, float* u2)
+{
+	for (int index = (blockIdx.x * 1024 + threadIdx.x); index < M; index += 1024) {
+		if ((index > M) && (index < (M * M - M)) && (index % M != 0) && (index % M + 1 != M)) {
+			u[index] = (p * (u1[index - M] + u1[index + M] + u1[index - 1] + u1[index + 1] - 4 * u1[index]) + 2 * u1[index] - (1 - n) * u2[index]) / (1 + n);
+		}
+	}
+}
+
+__global__ void parallelSolverP5(float* u)
+{
+	for (int index = (blockIdx.x * 1024 + threadIdx.x); index < M; index += 1024) {
+		if (!((index > M) && (index < (M * M - M)) && (index % M != 0) && (index % M + 1 != M)) &&
+			((index != 0) || (index != M * M - 1) || (index != M * M - M) || (index != M - 1)))
+		{
+			if (index < M) u[index] = G * u[index + M];
+			if ((index > M * M - M) && (index < M * M)) u[index] = G * u[index - M];
+			if (index % M == 0) u[index] = G * u[index + 1];
+			if (index % M + 1 == M) u[index] = G * u[index - 1];
+		}
+	}
+}
+
+__global__ void parallelSolverP6(float* u)
+{
+	for (int index = (blockIdx.x * 1024 + threadIdx.x); index < M; index += 1024) {
+		if (index == 0) u[index] = G * u[index + M];
+		if (index == M * M - 1) u[index] = G * u[index - 1];
+		if (index == M * M - M) u[index] = G * u[index - M];
+		if (index == M - 1) u[index] = G * u[index - 1];
+	}
+}
+
 int main(int argc, char* argv[])
 {
-	int iterations = atoi(argv[1]);
+	//int iterations = atoi(argv[1]);
+
+	//// sequential implimentation
+	//float seqDrum_U[N][N] = { 0 };
+	//float seqDrum_U1[N][N] = { 0 };
+	//float seqDrum_U2[N][N] = { 0 };
+
+	//seqDrum_U1[N / 2][N / 2] += 1.0f;
 
 
-	// sequential implimentation
-	float seqDrum_U[N][N] = { 0 };
-	float seqDrum_U1[N][N] = { 0 };
-	float seqDrum_U2[N][N] = { 0 };
+	//printf("\nSequential implementation (part 1):\n");
+	//for (int i = 0; i < iterations; i++) {
+	//	seqSolver(seqDrum_U, seqDrum_U1, seqDrum_U2);
+	//	printf("U[N/2][N/2] after %d interation: %3.6f\n", i, seqDrum_U[N / 2][N / 2]);
+	//	display(seqDrum_U);
+	//	memcpy(seqDrum_U2, seqDrum_U1, N * N * sizeof(float));
+	//	memcpy(seqDrum_U1, seqDrum_U, N * N * sizeof(float));
+	//}
 
-	seqDrum_U1[N / 2][N / 2] += 1.0f;
+	////free(seqDrum_U);
+	////free(seqDrum_U1);
+	////free(seqDrum_U2);
 
+	////parallel implementation 
+	//float parDrum_U[N * N] = { 0 };
+	//float parDrum_U1[N * N] = { 0 };
+	//float parDrum_U2[N * N] = { 0 };
 
-	printf("\nSequential implementation (part 1):\n");
-	for (int i = 0; i < iterations; i++) {
-		seqSolver(seqDrum_U, seqDrum_U1, seqDrum_U2);
-		printf("U[N/2][N/2] after %d interation: %3.6f\n", i, seqDrum_U[N / 2][N / 2]);
-		display(seqDrum_U);
-		memcpy(seqDrum_U2, seqDrum_U1, N * N * sizeof(float));
-		memcpy(seqDrum_U1, seqDrum_U, N * N * sizeof(float));
-	}
+	//float* d_parDrum_U;
+	//float* d_parDrum_U1;
+	//float* d_parDrum_U2;
 
-	//free(seqDrum_U);
-	//free(seqDrum_U1);
-	//free(seqDrum_U2);
+	//parDrum_U1[10] += 1;
 
-	//parallel implementation 
-	float parDrum_U[N * N] = { 0 };
-	float parDrum_U1[N * N] = { 0 };
-	float parDrum_U2[N * N] = { 0 };
+	//cudaMallocManaged((void**)&d_parDrum_U, N * N * sizeof(float));
+	//cudaMallocManaged((void**)&d_parDrum_U1, N * N * sizeof(float));
+	//cudaMallocManaged((void**)&d_parDrum_U2, N * N * sizeof(float));
 
-	float* d_parDrum_U;
-	float* d_parDrum_U1;
-	float* d_parDrum_U2;
+	//cudaMemcpy(d_parDrum_U, parDrum_U, N * N * sizeof(float), cudaMemcpyHostToDevice);
+	//cudaMemcpy(d_parDrum_U1, parDrum_U1, N * N * sizeof(float), cudaMemcpyHostToDevice);
+	//cudaMemcpy(d_parDrum_U2, parDrum_U2, N * N * sizeof(float), cudaMemcpyHostToDevice);
 
-	parDrum_U1[10] += 1;
-
-	cudaMallocManaged((void**)&d_parDrum_U, N * N * sizeof(float));
-	cudaMallocManaged((void**)&d_parDrum_U1, N * N * sizeof(float));
-	cudaMallocManaged((void**)&d_parDrum_U2, N * N * sizeof(float));
-
-	cudaMemcpy(d_parDrum_U, parDrum_U, N * N * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_parDrum_U1, parDrum_U1, N * N * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_parDrum_U2, parDrum_U2, N * N * sizeof(float), cudaMemcpyHostToDevice);
-
-	printf("\nParallel implementation (part 2):\n");
-	for (int i = 0; i < iterations; i++) {
-		parallelSolverP1 << <1, 16 >> > (d_parDrum_U, d_parDrum_U1, d_parDrum_U2);
-		cudaDeviceSynchronize();
-		parallelSolverP2 << <1, 16 >> > (d_parDrum_U);
-		cudaDeviceSynchronize();
-		parallelSolverP3 << <1, 16 >> > (d_parDrum_U);
-		cudaDeviceSynchronize();
-		printf("U[N/2][N/2] after %d interation: %3.6f\n", i, d_parDrum_U[10]);
-		display(d_parDrum_U);
-		cudaMemcpy(d_parDrum_U2, d_parDrum_U1, N * N * sizeof(float), cudaMemcpyDeviceToDevice);
-		cudaMemcpy(d_parDrum_U1, d_parDrum_U, N * N * sizeof(float), cudaMemcpyDeviceToDevice);
-	}
+	//printf("\nParallel implementation (part 2):\n");
+	//for (int i = 0; i < iterations; i++) {
+	//	parallelSolverP1 << <1, 16 >> > (d_parDrum_U, d_parDrum_U1, d_parDrum_U2);
+	//	cudaDeviceSynchronize();
+	//	parallelSolverP2 << <1, 16 >> > (d_parDrum_U);
+	//	cudaDeviceSynchronize();
+	//	parallelSolverP3 << <1, 16 >> > (d_parDrum_U);
+	//	cudaDeviceSynchronize();
+	//	printf("U[N/2][N/2] after %d interation: %3.6f\n", i, d_parDrum_U[10]);
+	//	display(d_parDrum_U);
+	//	cudaMemcpy(d_parDrum_U2, d_parDrum_U1, N * N * sizeof(float), cudaMemcpyDeviceToDevice);
+	//	cudaMemcpy(d_parDrum_U1, d_parDrum_U, N * N * sizeof(float), cudaMemcpyDeviceToDevice);
+	//}
 	/*
 	free(parDrum_U);
 	free(parDrum_U1);
@@ -111,6 +144,44 @@ int main(int argc, char* argv[])
 	cudaFree(d_parDrum_U1);
 	cudaFree(d_parDrum_U2);
 	*/
+
+	int iterations = 12;
+
+	//parallel implementation 
+	float parDrum_U[M * M] = { 0 };
+	//float parDrum_U1[M * M] = { 0 };
+	//float parDrum_U2[M * M] = { 0 };
+
+	float* d_parDrum_U;
+	float* d_parDrum_U1;
+	float* d_parDrum_U2;
+
+	int middle = (M / 2) * M + (M / 2);
+
+	//parDrum_U1[middle] += 1;
+
+	cudaMallocManaged((void**)& d_parDrum_U, M * M * sizeof(float));
+	cudaMallocManaged((void**)& d_parDrum_U1, M * M * sizeof(float));
+	cudaMallocManaged((void**)& d_parDrum_U2, M * M * sizeof(float));
+
+	cudaMemcpy(d_parDrum_U, parDrum_U, M * M * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_parDrum_U2, parDrum_U, M * M * sizeof(float), cudaMemcpyHostToDevice);
+	parDrum_U[middle] += 1;
+	cudaMemcpy(d_parDrum_U1, parDrum_U, M * M * sizeof(float), cudaMemcpyHostToDevice);
+
+	printf("\nParallel implementation (part 3):\n");
+	for (int i = 0; i < iterations; i++) {
+		parallelSolverP4 << <16, 1024 >> > (d_parDrum_U, d_parDrum_U1, d_parDrum_U2);
+		cudaDeviceSynchronize();
+		parallelSolverP5 << <16, 1024 >> > (d_parDrum_U);
+		cudaDeviceSynchronize();
+		parallelSolverP6 << <16, 1024 >> > (d_parDrum_U);
+		cudaDeviceSynchronize();
+		printf("(256, 256) after %d interation: %3.6f\n", i, d_parDrum_U[middle]);
+		cudaMemcpy(d_parDrum_U2, d_parDrum_U1, M * M * sizeof(float), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(d_parDrum_U1, d_parDrum_U, M * M * sizeof(float), cudaMemcpyDeviceToDevice);
+	}
+
 	return 0;
 }
 
